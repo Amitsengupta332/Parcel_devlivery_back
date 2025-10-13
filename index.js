@@ -41,6 +41,7 @@ async function run() {
     const parcelCollection = db.collection("parcels");
     const usersCollection = db.collection("users");
     const paymentsCollection = db.collection("payments");
+    const ridersCollection = db.collection("riders");
 
     // custom middlewares
 
@@ -148,6 +149,25 @@ async function run() {
         res.status(500).send({ message: "Failed to delete parcel" });
       }
     });
+
+    app.post("/riders", async (req, res) => {
+      const rider = req.body;
+      const result = await ridersCollection.insertOne(rider);
+      res.send(result);
+    });
+
+    app.get("/riders/pending", async (req, res) => {
+      try {
+        const pendingRiders = await ridersCollection
+          .find({ status: "pending" })
+          .toArray();
+
+        res.send(pendingRiders);
+      } catch (error) {
+        console.error("Failed to load pending riders:", error);
+        res.status(500).send({ message: "Failed to load pending riders" });
+      }
+    }); 
 
     app.post("/tracking", async (req, res) => {
       const {
