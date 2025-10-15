@@ -65,6 +65,16 @@ async function run() {
       }
     };
 
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      if (!user || user.role !== "admin") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+
     app.get("/users/search", async (req, res) => {
       const emailQuery = req.query.email;
       if (!emailQuery) {
@@ -142,25 +152,30 @@ async function run() {
       }
     });
 
-    app.patch("/users/:id/role", async (req, res) => {
-      const { id } = req.params;
-      const { role } = req.body;
+    app.patch(
+      "/users/:id/role",
+      verifyFBToken,
+      verifyAdmin,
+      async (req, res) => {
+        const { id } = req.params;
+        const { role } = req.body;
 
-      if (!["admin", "user"].includes(role)) {
-        return res.status(400).send({ message: "Invalid role" });
-      }
+        if (!["admin", "user"].includes(role)) {
+          return res.status(400).send({ message: "Invalid role" });
+        }
 
-      try {
-        const result = await usersCollection.updateOne(
-          { _id: new ObjectId(id) },
-          { $set: { role } }
-        );
-        res.send({ message: `User role updated to ${role}`, result });
-      } catch (error) {
-        console.error("Error updating user role", error);
-        res.status(500).send({ message: "Failed to update user role" });
+        try {
+          const result = await usersCollection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: { role } }
+          );
+          res.send({ message: `User role updated to ${role}`, result });
+        } catch (error) {
+          console.error("Error updating user role", error);
+          res.status(500).send({ message: "Failed to update user role" });
+        }
       }
-    });
+    );
 
     // parcels api
     app.get("/parcels", async (req, res) => {
@@ -240,7 +255,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/riders/pending", verifyFBToken, async (req, res) => {
+    app.get("/riders/pending", verifyFBToken, verifyAdmin, async (req, res) => {
       try {
         const pendingRiders = await ridersCollection
           .find({ status: "pending" })
@@ -253,7 +268,7 @@ async function run() {
       }
     });
 
-    app.get("/riders/active", async (req, res) => {
+    app.get("/riders/active", verifyFBToken, verifyAdmin, async (req, res) => {
       const result = await ridersCollection
         .find({ status: "active" })
         .toArray();
