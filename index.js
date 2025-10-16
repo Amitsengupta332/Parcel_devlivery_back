@@ -132,25 +132,25 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/users/:id/role", async (req, res) => {
-      const { id } = req.params;
-      const { role } = req.body;
+    // app.patch("/users/:id/role", async (req, res) => {
+    //   const { id } = req.params;
+    //   const { role } = req.body;
 
-      if (!["admin", "user"].includes(role)) {
-        return res.status(400).send({ message: "Invalid role" });
-      }
+    //   if (!["admin", "user"].includes(role)) {
+    //     return res.status(400).send({ message: "Invalid role" });
+    //   }
 
-      try {
-        const result = await usersCollection.updateOne(
-          { _id: new ObjectId(id) },
-          { $set: { role } }
-        );
-        res.send({ message: `User role updated to ${role}`, result });
-      } catch (error) {
-        console.error("Error updating user role", error);
-        res.status(500).send({ message: "Failed to update user role" });
-      }
-    });
+    //   try {
+    //     const result = await usersCollection.updateOne(
+    //       { _id: new ObjectId(id) },
+    //       { $set: { role } }
+    //     );
+    //     res.send({ message: `User role updated to ${role}`, result });
+    //   } catch (error) {
+    //     console.error("Error updating user role", error);
+    //     res.status(500).send({ message: "Failed to update user role" });
+    //   }
+    // });
 
     app.patch(
       "/users/:id/role",
@@ -178,20 +178,100 @@ async function run() {
     );
 
     // parcels api
-    app.get("/parcels", async (req, res) => {
-      const parcels = await parcelCollection.find().toArray();
-      res.send(parcels);
-    });
+    // app.get("/parcels", async (req, res) => {
+    //   const parcels = await parcelCollection.find().toArray();
+    //   res.send(parcels);
+    // });
+    // parcels api
+    // GET: All parcels OR parcels by user (created_by), sorted by latest
+    // app.get("/parcels", verifyFBToken, async (req, res) => {
+    //   try {
+    //     const userEmail = req.query.email;
+
+    //     const query = userEmail ? { created_by: userEmail } : {};
+    //     const options = {
+    //       sort: { createdAt: -1 }, // Newest first
+    //     };
+
+    //     const parcels = await parcelCollection.find(query, options).toArray();
+    //     res.send(parcels);
+    //   } catch (error) {
+    //     console.error("Error fetching parcels:", error);
+    //     res.status(500).send({ message: "Failed to get parcels" });
+    //   }
+    // });
+
+    // // GET: Get a specific parcel by ID
+    // app.get("/parcels/:id", async (req, res) => {
+    //   try {
+    //     const id = req.params.id;
+
+    //     const parcel = await parcelCollection.findOne({
+    //       _id: new ObjectId(id),
+    //     });
+
+    //     if (!parcel) {
+    //       return res.status(404).send({ message: "Parcel not found" });
+    //     }
+
+    //     res.send(parcel);
+    //   } catch (error) {
+    //     console.error("Error fetching parcel:", error);
+    //     res.status(500).send({ message: "Failed to fetch parcel" });
+    //   }
+    // });
+
+    // // POST: Create a new parcel
+    // app.post("/parcels", async (req, res) => {
+    //   try {
+    //     const newParcel = req.body;
+    //     // newParcel.createdAt = new Date();
+    //     const result = await parcelCollection.insertOne(newParcel);
+    //     res.status(201).send(result);
+    //   } catch (error) {
+    //     console.error("Error inserting parcel:", error);
+    //     res.status(500).send({ message: "Failed to create parcel" });
+    //   }
+    // });
+
+    // app.delete("/parcels/:id", async (req, res) => {
+    //   try {
+    //     const id = req.params.id;
+
+    //     const result = await parcelCollection.deleteOne({
+    //       _id: new ObjectId(id),
+    //     });
+
+    //     res.send(result);
+    //   } catch (error) {
+    //     console.error("Error deleting parcel:", error);
+    //     res.status(500).send({ message: "Failed to delete parcel" });
+    //   }
+    // });
+
     // parcels api
     // GET: All parcels OR parcels by user (created_by), sorted by latest
     app.get("/parcels", verifyFBToken, async (req, res) => {
       try {
-        const userEmail = req.query.email;
+        const { email, payment_status, delivery_status } = req.query;
+        let query = {};
+        if (email) {
+          query = { created_by: email };
+        }
 
-        const query = userEmail ? { created_by: userEmail } : {};
+        if (payment_status) {
+          query.payment_status = payment_status;
+        }
+
+        if (delivery_status) {
+          query.delivery_status = delivery_status;
+        }
+
         const options = {
           sort: { createdAt: -1 }, // Newest first
         };
+
+        console.log("parcel query", req.query, query);
 
         const parcels = await parcelCollection.find(query, options).toArray();
         res.send(parcels);
@@ -231,6 +311,40 @@ async function run() {
       } catch (error) {
         console.error("Error inserting parcel:", error);
         res.status(500).send({ message: "Failed to create parcel" });
+      }
+    });
+
+    app.patch("/parcels/:id/assign", async (req, res) => {
+      const parcelId = req.params.id;
+      const { riderId, riderName } = req.body;
+
+      try {
+        // Update parcel
+        await parcelCollection.updateOne(
+          { _id: new ObjectId(parcelId) },
+          {
+            $set: {
+              delivery_status: "in_transit",
+              assigned_rider_id: riderId,
+              assigned_rider_name: riderName,
+            },
+          }
+        );
+
+        // Update rider
+        await ridersCollection.updateOne(
+          { _id: new ObjectId(riderId) },
+          {
+            $set: {
+              work_status: "in_delivery",
+            },
+          }
+        );
+
+        res.send({ message: "Rider assigned" });
+      } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: "Failed to assign rider" });
       }
     });
 
@@ -275,6 +389,24 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/riders/available", async (req, res) => {
+      const { district } = req.query;
+
+      try {
+        const riders = await ridersCollection
+          .find({
+            district,
+            // status: { $in: ["approved", "active"] },
+            // work_status: "available",
+          })
+          .toArray();
+
+        res.send(riders);
+      } catch (err) {
+        res.status(500).send({ message: "Failed to load riders" });
+      }
+    });
+
     app.patch("/riders/:id/status", async (req, res) => {
       const { id } = req.params;
       const { status, email } = req.body;
@@ -308,6 +440,28 @@ async function run() {
         res.status(500).send({ message: "Failed to update rider status" });
       }
     });
+    // app.post("/tracking", async (req, res) => {
+    //   const {
+    //     tracking_id,
+    //     parcel_id,
+    //     status,
+    //     message,
+    //     updated_by = "",
+    //   } = req.body;
+
+    //   const log = {
+    //     tracking_id,
+    //     parcel_id: parcel_id ? new ObjectId(parcel_id) : null,
+    //     status,
+    //     message,
+    //     time: new Date(),
+    //     updated_by,
+    //   };
+
+    //   const result = await trackingCollection.insertOne(log);
+    //   res.send({ success: true, insertedId: result.insertedId });
+    // });
+
     app.post("/tracking", async (req, res) => {
       const {
         tracking_id,
@@ -319,7 +473,7 @@ async function run() {
 
       const log = {
         tracking_id,
-        parcel_id: parcel_id ? new ObjectId(parcel_id) : undefined,
+        parcel_id: parcel_id ? ObjectId.createFromHexString(parcel_id) : null,
         status,
         message,
         time: new Date(),
