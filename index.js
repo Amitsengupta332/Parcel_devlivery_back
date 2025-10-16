@@ -44,7 +44,6 @@ async function run() {
     const ridersCollection = db.collection("riders");
 
     // custom middlewares
-
     const verifyFBToken = async (req, res, next) => {
       const authHeader = req.headers.authorization;
       if (!authHeader) {
@@ -132,26 +131,6 @@ async function run() {
       res.send(result);
     });
 
-    // app.patch("/users/:id/role", async (req, res) => {
-    //   const { id } = req.params;
-    //   const { role } = req.body;
-
-    //   if (!["admin", "user"].includes(role)) {
-    //     return res.status(400).send({ message: "Invalid role" });
-    //   }
-
-    //   try {
-    //     const result = await usersCollection.updateOne(
-    //       { _id: new ObjectId(id) },
-    //       { $set: { role } }
-    //     );
-    //     res.send({ message: `User role updated to ${role}`, result });
-    //   } catch (error) {
-    //     console.error("Error updating user role", error);
-    //     res.status(500).send({ message: "Failed to update user role" });
-    //   }
-    // });
-
     app.patch(
       "/users/:id/role",
       verifyFBToken,
@@ -176,78 +155,6 @@ async function run() {
         }
       }
     );
-
-    // parcels api
-    // app.get("/parcels", async (req, res) => {
-    //   const parcels = await parcelCollection.find().toArray();
-    //   res.send(parcels);
-    // });
-    // parcels api
-    // GET: All parcels OR parcels by user (created_by), sorted by latest
-    // app.get("/parcels", verifyFBToken, async (req, res) => {
-    //   try {
-    //     const userEmail = req.query.email;
-
-    //     const query = userEmail ? { created_by: userEmail } : {};
-    //     const options = {
-    //       sort: { createdAt: -1 }, // Newest first
-    //     };
-
-    //     const parcels = await parcelCollection.find(query, options).toArray();
-    //     res.send(parcels);
-    //   } catch (error) {
-    //     console.error("Error fetching parcels:", error);
-    //     res.status(500).send({ message: "Failed to get parcels" });
-    //   }
-    // });
-
-    // // GET: Get a specific parcel by ID
-    // app.get("/parcels/:id", async (req, res) => {
-    //   try {
-    //     const id = req.params.id;
-
-    //     const parcel = await parcelCollection.findOne({
-    //       _id: new ObjectId(id),
-    //     });
-
-    //     if (!parcel) {
-    //       return res.status(404).send({ message: "Parcel not found" });
-    //     }
-
-    //     res.send(parcel);
-    //   } catch (error) {
-    //     console.error("Error fetching parcel:", error);
-    //     res.status(500).send({ message: "Failed to fetch parcel" });
-    //   }
-    // });
-
-    // // POST: Create a new parcel
-    // app.post("/parcels", async (req, res) => {
-    //   try {
-    //     const newParcel = req.body;
-    //     // newParcel.createdAt = new Date();
-    //     const result = await parcelCollection.insertOne(newParcel);
-    //     res.status(201).send(result);
-    //   } catch (error) {
-    //     console.error("Error inserting parcel:", error);
-    //     res.status(500).send({ message: "Failed to create parcel" });
-    //   }
-    // });
-
-    // app.delete("/parcels/:id", async (req, res) => {
-    //   try {
-    //     const id = req.params.id;
-
-    //     const result = await parcelCollection.deleteOne({
-    //       _id: new ObjectId(id),
-    //     });
-
-    //     res.send(result);
-    //   } catch (error) {
-    //     console.error("Error deleting parcel:", error);
-    //     res.status(500).send({ message: "Failed to delete parcel" });
-    //   }
-    // });
 
     // parcels api
     // GET: All parcels OR parcels by user (created_by), sorted by latest
@@ -440,27 +347,6 @@ async function run() {
         res.status(500).send({ message: "Failed to update rider status" });
       }
     });
-    // app.post("/tracking", async (req, res) => {
-    //   const {
-    //     tracking_id,
-    //     parcel_id,
-    //     status,
-    //     message,
-    //     updated_by = "",
-    //   } = req.body;
-
-    //   const log = {
-    //     tracking_id,
-    //     parcel_id: parcel_id ? new ObjectId(parcel_id) : null,
-    //     status,
-    //     message,
-    //     time: new Date(),
-    //     updated_by,
-    //   };
-
-    //   const result = await trackingCollection.insertOne(log);
-    //   res.send({ success: true, insertedId: result.insertedId });
-    // });
 
     app.post("/tracking", async (req, res) => {
       const {
@@ -473,7 +359,7 @@ async function run() {
 
       const log = {
         tracking_id,
-        parcel_id: parcel_id ? ObjectId.createFromHexString(parcel_id) : null,
+        parcel_id: parcel_id ? new ObjectId(parcel_id) : undefined,
         status,
         message,
         time: new Date(),
@@ -484,9 +370,13 @@ async function run() {
       res.send({ success: true, insertedId: result.insertedId });
     });
 
-    app.get("/payments", async (req, res) => {
+    app.get("/payments", verifyFBToken, async (req, res) => {
       try {
         const userEmail = req.query.email;
+        console.log("decocded", req.decoded);
+        if (req.decoded.email !== userEmail) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
 
         const query = userEmail ? { email: userEmail } : {};
         const options = { sort: { paid_at: -1 } }; // Latest first
