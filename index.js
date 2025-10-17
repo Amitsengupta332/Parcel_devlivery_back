@@ -221,39 +221,76 @@ async function run() {
       }
     });
 
-    app.patch("/parcels/:id/assign", async (req, res) => {
-      const parcelId = req.params.id;
-      const { riderId, riderName } = req.body;
+    // app.patch("/parcels/:id/assign", async (req, res) => {
+    //   const parcelId = req.params.id;
+    //   const { riderId, riderName } = req.body;
 
-      try {
+    //   try {
+    //     // Update parcel
+    //     await parcelCollection.updateOne(
+    //       { _id: new ObjectId(parcelId) },
+    //       {
+    //         $set: {
+    //           delivery_status: "in_transit",
+    //           assigned_rider_id: riderId,
+    //           assigned_rider_name: riderName,
+    //         },
+    //       }
+    //     );
+
+    //     // Update rider
+    //     await ridersCollection.updateOne(
+    //       { _id: new ObjectId(riderId) },
+    //       {
+    //         $set: {
+    //           work_status: "in_delivery",
+    //         },
+    //       }
+    //     );
+
+    //     res.send({ message: "Rider assigned" });
+    //   } catch (err) {
+    //     console.error(err);
+    //     res.status(500).send({ message: "Failed to assign rider" });
+    //   }
+    // });
+
+app.patch("/parcels/:id/assign", async (req, res) => {
+    const parcelId = String(req.params.id);
+    const riderId = String(req.body.riderId);
+    const { riderName, riderEmail } = req.body;
+
+    try {
         // Update parcel
-        await parcelCollection.updateOne(
-          { _id: new ObjectId(parcelId) },
-          {
-            $set: {
-              delivery_status: "in_transit",
-              assigned_rider_id: riderId,
-              assigned_rider_name: riderName,
-            },
-          }
+        await parcelCollection.updateOne(     // ✅ FIXED HERE
+            { _id: new ObjectId(parcelId) },
+            {
+                $set: {
+                    delivery_status: "rider_assigned",
+                    assigned_rider_id: riderId,
+                    assigned_rider_email: riderEmail,
+                    assigned_rider_name: riderName,
+                },
+            }
         );
 
         // Update rider
         await ridersCollection.updateOne(
-          { _id: new ObjectId(riderId) },
-          {
-            $set: {
-              work_status: "in_delivery",
-            },
-          }
+            { _id: new ObjectId(riderId) },
+            {
+                $set: {
+                    work_status: "in_delivery",
+                },
+            }
         );
 
         res.send({ message: "Rider assigned" });
-      } catch (err) {
-        console.error(err);
-        res.status(500).send({ message: "Failed to assign rider" });
-      }
-    });
+    } catch (err) {
+        console.error("ASSIGN ERROR:", err);
+        res.status(500).send({ message: err.message });
+    }
+});
+
 
     app.delete("/parcels/:id", async (req, res) => {
       try {
